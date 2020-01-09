@@ -203,13 +203,13 @@ const char report_reverse[] =
 "Reverse mode, remote host %s is sending\n";
 
 const char report_accepted[] =
-"Accepted connection from %s, port %d\n";
+"iperf Accepted connection from %s, port %d\n";
 
 const char report_cookie[] =
 "      Cookie: %s\n";
 
 const char report_connected[] =
-"[%3d] local %s port %d connected to %s port %d\n";
+"iperf [%3d] local %s port %d connected to %s port %d\n";
 
 const char report_window[] =
 "TCP window size: %s\n";

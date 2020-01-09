@@ -5,6 +5,7 @@ import androidx.annotation.RequiresPermission;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.wifi.WifiInfo;
@@ -14,10 +15,17 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.text.TextUtils;
 import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.CompoundButton;
 import android.widget.EditText;
+import android.widget.ListPopupWindow;
+import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
@@ -36,6 +44,7 @@ import java.nio.channels.FileLock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Timer;
 
@@ -50,7 +59,8 @@ import lecho.lib.hellocharts.model.ValueShape;
 import lecho.lib.hellocharts.model.Viewport;
 import lecho.lib.hellocharts.view.LineChartView;
 
-public class IperfTestActivity extends AppCompatActivity implements CompoundButton.OnCheckedChangeListener {
+public class IperfTestActivity extends AppCompatActivity implements CompoundButton.OnCheckedChangeListener, View.OnFocusChangeListener,
+        View.OnTouchListener {
 
     private static final String TAG = "wifitag";
     private ToggleButton mToggleButton;
@@ -69,6 +79,8 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
     private static final int IPERF_SUCCESS = 10001;
     private static final int REQUEST_WRITE_EXTERNAL_STORAGE = 1000;
     private static final String PACKAGE_PATH = "/data/data/com.example.wifitest";
+    private static final String IPERF_AVG = "[ ID] Interval           Transfer     Bandwidth       Retr\n";
+    private static final String IPERF_DO="[ ID] Interval           Transfer     Bandwidth";
 
     private static String IPERF_PATH;
     private boolean isDoExecCommand = false;
@@ -87,6 +99,10 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
     private Timer timer;
     private Random random = new Random();
     private boolean isFinish = true;
+    private float maxTop;
+    private SharedPreferences sharedPreferences;
+    PopupWindowAdapter adapter;
+    private List<String> popuplist=new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,7 +114,7 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
 
         mWifiManager =(WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         mInterface.setText("interface: " +getProperty("wifi.interface", "wlan0"));
-        mDeviceName.setText("device: "+Build.DEVICE);
+        mDeviceName.setText("device: "+ Build.BOARD);
         mIpAddr.setText("ipaddr: "+getCurrentIp());
 
         mHandler = new MyHandelr();
@@ -122,31 +138,29 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
         mCommandEt = findViewById(R.id.et_command);
         mShowConnect = findViewById(R.id.tv_connect);
         mToggleButton.setOnCheckedChangeListener(this);
-        mToggleButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Log.i(TAG, " togglebutton click");
-            }
-        });
+        mCommandEt.setOnFocusChangeListener(this);
+        mCommandEt.setOnTouchListener(this);
 
         lineChart = findViewById(R.id.chart);
+
+        sharedPreferences = getSharedPreferences("etcommand", Context.MODE_PRIVATE);
 
         pointValueList = new ArrayList<>();
         linesList = new ArrayList<>();
         axisY = new Axis();
         axisY.setLineColor(Color.GREEN);
         axisY.setTextColor(Color.BLACK);
-        axisY.setName("Value");
+        axisY.setName("MBits(BW)");
 
 
         axisX = new Axis();
         axisX.setLineColor(Color.GREEN);
         axisX.setTextColor(Color.BLACK);
-        axisX.setName("Time");
+        axisX.setName("Time(sec)");
         lineChartData = initDatas(null);
         lineChart.setLineChartData(lineChartData);
 
-        Viewport port = initViewPort(0,20);
+        Viewport port = initViewPort(0,20, 10);
         lineChart.setCurrentViewportWithAnimation(port);
         lineChart.setInteractive(false);
         lineChart.setScrollEnabled(true);
@@ -158,7 +172,8 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
 
         points = new ArrayList<>();
 
-
+        getPopupWindowList();
+        adapter = new PopupWindowAdapter(this, popuplist);
     }
 
 
@@ -175,9 +190,9 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
      * @param right
      * @return
      */
-    private Viewport initViewPort(float left, float right){
+    private Viewport initViewPort(float left, float right, float top){
         Viewport port = new Viewport();
-        port.top = 60;
+        port.top = top;
         port.bottom=0;
         port.left= left;
         port.right=right;
@@ -190,9 +205,9 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
      * @param right
      * @return
      */
-    private Viewport initMaxViewPort(float right){
+    private Viewport initMaxViewPort(float right, float top){
         Viewport port = new Viewport();
-        port.top=60;
+        port.top= top;
         port.bottom=0;
         port.left=0;
         port.right=right+20;
@@ -206,8 +221,8 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
         if(bean.endtime.isEmpty() || bean.bitrate.isEmpty()){
           //  return;
         }
-
-        PointValue value1 = new PointValue(Float.valueOf(bean.endtime), Float.valueOf(bean.bitrate.split(" ")[0]));
+        float bitrate = Float.valueOf(bean.bitrate.split(" ")[0]);
+        PointValue value1 = new PointValue(Float.valueOf(bean.endtime), bitrate);
         value1.setLabel(bean.bitrate);
         pointValueList.add(value1);
 
@@ -224,14 +239,19 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
         lineChartData = initDatas(linesList);
         lineChart.setLineChartData(lineChartData);
         Viewport port;
+
+        if (bitrate > maxTop){
+            maxTop = bitrate+10;
+        }
+
         if (x > 20){
-            port = initViewPort(x-20, x);
+            port = initViewPort(x-20, x, maxTop);
         }else {
-            port = initViewPort(0, 20);
+            port = initViewPort(0, 20, maxTop);
         }
         lineChart.setCurrentViewport(port);
 
-        Viewport maPort = initMaxViewPort(x);
+        Viewport maPort = initMaxViewPort(x, maxTop);
         lineChart.setMaximumViewport(maPort);
     }
 
@@ -248,6 +268,7 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
         Log.i(TAG, "toggleButton  check changed : "+isChecked);
         if (!isDoExecCommand) {
             isDoExecCommand = true;
+            saveCommandList();
             if (mIperTask == null) {
                 mIperTask = new DoIperfTask();
                 mIperTask.execute();
@@ -267,6 +288,26 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
 
     }
 
+    private void saveCommandList(){
+        boolean isduplicate= false;
+        if (!TextUtils.isEmpty(mCommandEt.getText())){
+            Map<String, String> map = (Map<String, String>) sharedPreferences.getAll();
+            for (int i =0; i< map.size(); i++){
+                Log.i(TAG, "======check ====="+map.get("cmd"+i)+"  et="+mCommandEt.getText()+" :"+ map.get("cmd"+i).equals(mCommandEt.getText().toString()));
+                if (map.get("cmd"+i).equals(mCommandEt.getText().toString())){
+                    isduplicate = true;
+                    break;
+                }
+            }
+
+            if (!isduplicate) {
+                SharedPreferences.Editor editor = sharedPreferences.edit();
+                editor.putString("cmd" + sharedPreferences.getAll().size(), mCommandEt.getText().toString());
+                editor.apply();
+            }
+        }
+    }
+
     private void ensure_iperf_exist(){
         IPERF_PATH = PACKAGE_PATH + "/bin/iperf";
         File file = new File(IPERF_PATH);
@@ -280,8 +321,82 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
         }
     }
 
+    @Override
+    public void onFocusChange(View v, boolean hasFocus) {
+        if (hasFocus){
+            showListPopulWindow();
+        }
+    }
 
-     class MyHandelr extends Handler{
+    @Override
+    public boolean onTouch(View v, MotionEvent event) {
+        final int DRAWABLE_LEFT = 0;
+        final int DRAWABLE_TOP = 1;
+        final int DRAWABLE_RIGHT = 2;
+        final int DRAWABLE_BOTTOM = 3;
+        Log.i(TAG, "onTouch = "+event.getX());
+        if (event.getAction() == MotionEvent.ACTION_DOWN) {
+            if (event.getX() >= (mCommandEt.getWidth() - mCommandEt.getCompoundDrawables()[DRAWABLE_RIGHT].getBounds().width()-20)) {
+                mCommandEt.setCompoundDrawablesWithIntrinsicBounds(null, null, getResources().getDrawable(R.drawable.et_pop_up), null);
+                showListPopulWindow();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public void getPopupWindowList(){
+        popuplist.clear();
+        Map<String, String> map = (Map<String, String>) sharedPreferences.getAll();
+        for (int i =0; i< map.size(); i++){
+            popuplist.add(map.get("cmd"+i));
+        }
+    }
+
+
+
+    /**
+     * 下拉显示之前命令列表
+     */
+    private void showListPopulWindow() {
+        final ListPopupWindow listPopupWindow;
+        //显示下拉前重新读取保存的记录
+        getPopupWindowList();
+
+        listPopupWindow = new ListPopupWindow(this);
+        listPopupWindow.setAdapter(adapter);
+        listPopupWindow.setAnchorView(mCommandEt);//以哪个控件为基准，在该处以mEditText为基准
+        listPopupWindow.setModal(true);
+
+        adapter.setOnRemoveClickListen(new PopupWindowAdapter.OnRemoveclickListener() {
+            @Override
+            public void onSuccess(int position) {
+                sharedPreferences.edit().remove("cmd"+position).apply();
+                adapter.notifyDataSetChanged();
+            }
+        });
+
+        listPopupWindow.setOnItemClickListener(new AdapterView.OnItemClickListener() {//设置项点击监听
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                mCommandEt.setText(popuplist.get(i));//把选择的选项内容展示在EditText上
+                listPopupWindow.dismiss();//如果已经选择了，隐藏起来
+            }
+        });
+
+        listPopupWindow.setOnDismissListener(new PopupWindow.OnDismissListener() {
+            @Override
+            public void onDismiss() {
+                mCommandEt.setCompoundDrawablesWithIntrinsicBounds(null, null, getResources().getDrawable(R.drawable.et_pop_down), null);
+            }
+        });
+        listPopupWindow.show();//把ListPopWindow展示出来
+    }
+
+
+
+    class MyHandelr extends Handler{
          @Override
          public void handleMessage(@NonNull Message msg) {
              super.handleMessage(msg);
@@ -367,9 +482,18 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
             super.onProgressUpdate(values);
 
             Log.i(TAG, "progress values: "+values[0]);
+            if (values[0].startsWith("iperf")){
+                sb.append(values[0].replace("iperf","")+"\n");
+            }
+            if(values[0].endsWith("sender")||values[0].endsWith("receiver")){
+                if (values[0].endsWith("sender")){
+                    sb.append(IPERF_AVG);
+                }
+                sb.append(values[0]+"\n");
+            }
 
-            //mShowConnect.setText(sb.append(values[0]+"\n"));
-            if (values[0].contains("bits/sec")) {
+            mShowConnect.setText(sb.toString());
+            if (!values[0].endsWith("sender")&& !values[0].endsWith("receiver")&&values[0].contains("bits/sec")) {
                 DataBean bean = ParseIperDataHelper.parseData(values[0]);
                 drawLinePort(bean);
             }
