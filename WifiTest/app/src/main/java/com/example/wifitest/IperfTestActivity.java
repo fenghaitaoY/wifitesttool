@@ -86,7 +86,6 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
     private boolean isDoExecCommand = false;
     private DoIperfTask mIperTask;
 
-
     private List<PointValue> values;
     private List<Line> lines;
     private LineChartData lineChartData;
@@ -99,7 +98,7 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
     private Timer timer;
     private Random random = new Random();
     private boolean isFinish = true;
-    private float maxTop;
+    private float startTime, endTime, maxTop;
     private SharedPreferences sharedPreferences;
     PopupWindowAdapter adapter;
     private List<String> popuplist=new ArrayList<>();
@@ -145,6 +144,7 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
 
         sharedPreferences = getSharedPreferences("etcommand", Context.MODE_PRIVATE);
 
+
         pointValueList = new ArrayList<>();
         linesList = new ArrayList<>();
         axisY = new Axis();
@@ -157,6 +157,8 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
         axisX.setLineColor(Color.GREEN);
         axisX.setTextColor(Color.BLACK);
         axisX.setName("Time(sec)");
+
+
         lineChartData = initDatas(null);
         lineChart.setLineChartData(lineChartData);
 
@@ -178,7 +180,16 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
 
 
     private LineChartData initDatas(List<Line> lines){
-        LineChartData data = new LineChartData(lines);
+        LineChartData data;
+        if (lines == null){
+            data = new LineChartData();
+        }else {
+            data = new LineChartData(lines);
+        }
+        //备注背景，字体设置
+        data.setValueLabelBackgroundColor(Color.TRANSPARENT);
+        data.setValueLabelBackgroundEnabled(false);
+        data.setValueLabelsTextColor(Color.BLACK);
         data.setAxisYLeft(axisY);
         data.setAxisXBottom(axisX);
         return data;
@@ -222,16 +233,17 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
           //  return;
         }
         float bitrate = Float.valueOf(bean.bitrate.split(" ")[0]);
-        PointValue value1 = new PointValue(Float.valueOf(bean.endtime), bitrate);
+        endTime = Float.valueOf(bean.endtime);
+        PointValue value1 = new PointValue(endTime, bitrate);
         value1.setLabel(bean.bitrate);
         pointValueList.add(value1);
 
         float x = value1.getX();
         Line line = new Line(pointValueList);
-        line.setColor(Color.RED);
+        line.setColor(Color.BLUE);
         line.setShape(ValueShape.CIRCLE);
         line.setCubic(true);
-        line.setHasLabels(true);
+        line.setHasLabels(true);  //是否显示备注
         line.setHasPoints(true);
 
         linesList.clear();
@@ -259,6 +271,8 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
      * 图表绘制结束，设置可以交互，左右拉
      */
     private void interactive(){
+        Viewport port = initViewPort(0, endTime, maxTop);
+        lineChart.setCurrentViewport(port);
         lineChart.setInteractive(true);
         lineChart.setZoomType(ZoomType.HORIZONTAL_AND_VERTICAL);
     }
@@ -534,6 +548,8 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
             }
             ReadIperfDataHelper.getInstance().stop();
             mToggleButton.setChecked(false);
+
+
 
             interactive();
         }

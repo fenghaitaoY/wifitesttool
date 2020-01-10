@@ -16,7 +16,10 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
+import android.net.NetworkRequest;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
@@ -69,6 +72,7 @@ public class AgingTestActivity extends AppCompatActivity {
     private SharedPreferences sharedPreferences;
     ConnectivityManager connManager;
     NetworkInfo networkInfo;
+    NetworkCallbackImpl callback;
 
     private DividerItemDecoration mDivider;
     private int mTestCount=0;
@@ -76,6 +80,9 @@ public class AgingTestActivity extends AppCompatActivity {
     private boolean isScanResult=false;
     private boolean isConnected = false;
     private boolean isBootReceiveStart = false;
+    @SuppressLint("NewApi")
+    private static final NetworkRequest REQUEST = new NetworkRequest.Builder()
+            .build();
 
     @SuppressLint("HandlerLeak")
     private Handler mHandler = new Handler(){
@@ -124,6 +131,8 @@ public class AgingTestActivity extends AppCompatActivity {
         mData = new ArrayList<>();
 
         setListener();
+
+        callback = new NetworkCallbackImpl();
     }
 
     private void initView(){
@@ -227,12 +236,54 @@ public class AgingTestActivity extends AppCompatActivity {
             requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSIONS_REQUEST_CODE_ACCESS_FINE_LOCATION);
         }
 
+        connManager = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+        networkInfo = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N){
+            connManager.registerNetworkCallback(REQUEST,callback);
+        }
         getSSIDInfo();
         updateResult();
 
 
     }
 
+
+    @SuppressLint("NewApi")
+    class NetworkCallbackImpl extends ConnectivityManager.NetworkCallback{
+        @Override
+        public void onAvailable(@NonNull Network network) {
+            super.onAvailable(network);
+            Log.i(TAG, "=onAvailable="+network.toString());
+            saveWifiConnectState();
+            getSSIDInfo();
+        }
+
+        @Override
+        public void onLost(@NonNull Network network) {
+            super.onLost(network);
+            Log.i(TAG,"=onLost=");
+        }
+
+        @Override
+        public void onCapabilitiesChanged(@NonNull Network network, @NonNull NetworkCapabilities networkCapabilities) {
+            super.onCapabilitiesChanged(network, networkCapabilities);
+        }
+
+        @Override
+        public void onUnavailable() {
+            super.onUnavailable();
+            Log.i(TAG,"=onUnavailable=");
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N){
+            connManager.unregisterNetworkCallback(callback);
+        }
+    }
 
     @Override
     protected void onDestroy() {
@@ -247,8 +298,6 @@ public class AgingTestActivity extends AppCompatActivity {
     }
 
     private void  getSSIDInfo(){
-        connManager = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
-        networkInfo = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
             Log.i(TAG, " isconnected ="+networkInfo.isConnected());
             if (networkInfo.isConnected()) {
                 final WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
@@ -346,34 +395,38 @@ public class AgingTestActivity extends AppCompatActivity {
                 case WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION:
                     Log.i(TAG,"supplicant connection change ");
                     break;
-                case ConnectivityManager.CONNECTIVITY_ACTION: //wifi连接通知
+                case ConnectivityManager.CONNECTIVITY_ACTION:
+                    VITY_ACTION: //wifi连接通知
                     Log.i(TAG,"connectivity action ");
-
-                    sharedPreferences = getSharedPreferences("data", Context.MODE_PRIVATE);
-                    SharedPreferences.Editor editor = sharedPreferences.edit();
-                    if (mWifiSwitch.isChecked()) {
-                        connManager = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
-                        networkInfo = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
-                        if (networkInfo.isConnected()) {
-                            isConnected = true;
-                            editor.putInt("success", sharedPreferences.getInt("success", 0) + 1);
-                            //mWifiManager.startScan();
-                            List<ScanResult> scanResults = mWifiManager.getScanResults();
-                            Log.i(TAG, "scanResults size =" + scanResults.size());
-                        } else {
-                            editor.putInt("fail", sharedPreferences.getInt("fail", 0) + 1);
-                        }
-                        editor.commit();
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N){
+                        saveWifiConnectState();
+                        getSSIDInfo();
                     }
 
 
-                    getSSIDInfo();
 
                     break;
             }
         }
     }
 
+
+    private void saveWifiConnectState(){
+        sharedPreferences = getSharedPreferences("data", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        if (mWifiSwitch.isChecked()) {
+            if (networkInfo.isConnected()) {
+                isConnected = true;
+                editor.putInt("success", sharedPreferences.getInt("success", 0) + 1);
+                //mWifiManager.startScan();
+                List<ScanResult> scanResults = mWifiManager.getScanResults();
+                Log.i(TAG, "scanResults size =" + scanResults.size());
+            } else {
+                editor.putInt("fail", sharedPreferences.getInt("fail", 0) + 1);
+            }
+            editor.commit();
+        }
+    }
 
     class MyThread extends Thread{
         @Override
