@@ -1,7 +1,11 @@
 package com.example.wifitest;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.DefaultItemAnimator;
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -9,8 +13,12 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Activity;
+
+import android.app.TabActivity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
@@ -21,6 +29,7 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
 import android.net.NetworkRequest;
 import android.net.wifi.ScanResult;
+import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
@@ -37,6 +46,12 @@ import android.widget.LinearLayout;
 import android.widget.Switch;
 import android.widget.TextView;
 
+import com.yanzhenjie.permission.Action;
+import com.yanzhenjie.permission.AndPermission;
+import com.yanzhenjie.permission.Permission;
+import com.yanzhenjie.permission.Rationale;
+import com.yanzhenjie.permission.RequestExecutor;
+
 import org.w3c.dom.Text;
 
 import java.util.ArrayList;
@@ -49,7 +64,7 @@ public class AgingTestActivity extends AppCompatActivity {
 
     private static final String TAG = "wifitag";
     private static final int PERMISSIONS_REQUEST_CODE_ACCESS_FINE_LOCATION = 1000;
-
+    private static final int PERMISSIONS_REQUEST_ACCESS_COARSE_LOCATION=1;
     private TextView mSwitchTextview;
     private Switch mWifiSwitch;
     private TextView mSSIDTextView;
@@ -80,9 +95,7 @@ public class AgingTestActivity extends AppCompatActivity {
     private boolean isScanResult=false;
     private boolean isConnected = false;
     private boolean isBootReceiveStart = false;
-    @SuppressLint("NewApi")
-    private static final NetworkRequest REQUEST = new NetworkRequest.Builder()
-            .build();
+
 
     @SuppressLint("HandlerLeak")
     private Handler mHandler = new Handler(){
@@ -112,6 +125,35 @@ public class AgingTestActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+       /* if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Log.i(TAG, " request permissions");
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
+                            checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                Log.i(TAG, " request permissions qqqqqqq");
+                requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSIONS_REQUEST_CODE_ACCESS_FINE_LOCATION);
+                //requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSIONS_REQUEST_ACCESS_COARSE_LOCATION);
+            }
+        }*/
+        //
+        // requestPermission(this, Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION,Manifest.permission.ACCESS_WIFI_STATE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {//如果 API level 是大于等于 23(Android 6.0) 时
+            //判断是否具有权限
+            if (ContextCompat.checkSelfPermission(this,
+                    Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                //判断是否需要向用户解释为什么需要申请该权限
+                if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+                        Manifest.permission.ACCESS_COARSE_LOCATION)) {
+                    //showToast("自Android 6.0开始需要打开位置权限");
+                }
+                //请求权限
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
+                        PERMISSIONS_REQUEST_ACCESS_COARSE_LOCATION);
+            }
+        }
+
+
 
         isBootReceiveStart = getIntent().getBooleanExtra("boot", false);
         Log.i(TAG, " isBootreceiveStart = "+isBootReceiveStart);
@@ -150,7 +192,8 @@ public class AgingTestActivity extends AppCompatActivity {
 
         //添加分隔线
         mDivider = new DividerItemDecoration(this, DividerItemDecoration.VERTICAL);
-        mDivider.setDrawable(getDrawable(R.drawable.recycle_divider_line_shape));
+        //mDivider.setDrawable(getDrawable(R.drawable.recycle_divider_line_shape));
+        mDivider.setDrawable(getResources().getDrawable(R.drawable.recycle_divider_line_shape));
     }
 
     private void setListener(){
@@ -225,26 +268,42 @@ public class AgingTestActivity extends AppCompatActivity {
 
     }
 
+    public void requestPermission(Activity activity, String... permissions) {
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { //Build.VERSION_CODES.M
+            AndPermission.with(activity)
+                    .runtime()
+                    .permission(permissions)
+                    .rationale(new Rationale<List<String>>() {
+                        @Override
+                        public void showRationale(Context context, List<String> data, RequestExecutor executor) {
+
+                            List<String> permissionNames = Permission.transformText(context, data);
+
+                        }
+                    })
+                    .start();
+        }
+
+    }
+
     @SuppressLint("StringFormatInvalid")
     @Override
     protected void onResume() {
         super.onResume();
         sharedPreferences = getSharedPreferences("data", Context.MODE_PRIVATE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-                (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
-                        checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)) {
-            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSIONS_REQUEST_CODE_ACCESS_FINE_LOCATION);
-        }
+
 
         connManager = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
         networkInfo = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N){
+            NetworkRequest REQUEST = new NetworkRequest.Builder()
+                    .build();
             connManager.registerNetworkCallback(REQUEST,callback);
         }
         getSSIDInfo();
         updateResult();
-
 
     }
 
@@ -299,17 +358,37 @@ public class AgingTestActivity extends AppCompatActivity {
 
     private void  getSSIDInfo(){
             Log.i(TAG, " isconnected ="+networkInfo.isConnected());
+            String ssid = null;
             if (networkInfo.isConnected()) {
-                final WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-                final WifiInfo connectionInfo = wifiManager.getConnectionInfo();
-                if (connectionInfo != null) {
-                    String ssid = connectionInfo.getSSID();
-                    if (Build.VERSION.SDK_INT >= 17 && ssid.startsWith("\"") && ssid.endsWith("\""))
-                        ssid = ssid.replaceAll("^\"|\"$", "");
-                    mSSIDTextView.setText(ssid);
+                if (Build.VERSION.SDK_INT > Build.VERSION_CODES.O) {
+                    WifiManager my_wifiManager = ((WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE));
+
+                    assert my_wifiManager != null;
+                    WifiInfo wifiInfo = my_wifiManager.getConnectionInfo();
+                    ssid = wifiInfo.getSSID();
+                    int networkId = wifiInfo.getNetworkId();
+                    List<WifiConfiguration> configuredNetworks = my_wifiManager.getConfiguredNetworks();
+                    for (WifiConfiguration wifiConfiguration:configuredNetworks){
+                        Log.i(TAG, "ssid = "+wifiConfiguration.SSID);
+                        if (wifiConfiguration.networkId==networkId){
+                            ssid=wifiConfiguration.SSID.replace("\"","");
+                            break;
+                        }
+                    }
+                    Log.i(TAG, "ssid = "+ssid);
+                } else {
+                    final WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                    final WifiInfo connectionInfo = wifiManager.getConnectionInfo();
+                    if (connectionInfo != null) {
+                        ssid = connectionInfo.getSSID();
+                        Log.i(TAG, " GET SSID INFO SSID:" + ssid);
+                        if (Build.VERSION.SDK_INT >= 17 && ssid.startsWith("\"") && ssid.endsWith("\""))
+                            ssid = ssid.replaceAll("^\"|\"$", "");
+
+                    }
                 }
             }
-
+            mSSIDTextView.setText(ssid);
             updateResult();
     }
 
