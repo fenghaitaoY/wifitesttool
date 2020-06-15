@@ -14,7 +14,7 @@ public class BootReceive extends BroadcastReceiver {
             Intent mainIntent = new Intent(context, AgingTestActivity.class);
             mainIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             mainIntent.putExtra("boot", true);
-           // context.startActivity(mainIntent);
+            context.startActivity(mainIntent);
         }
     }
 }

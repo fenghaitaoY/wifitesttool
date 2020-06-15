@@ -14,7 +14,11 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-
+    <!-- getScanResult mtk 在设置中关闭GPS定位时返回不为空的权限-->
+    <uses-permission android:name="android.Manifest.permission.PEERS_MAC_ADDRESS"/>
+    <uses-permission android:name="android.Manifest.permission.INTERACT_ACROSS_USERS_FULL"/>
+    <uses-permission android:name="android.permission.REBOOT"
+        tools:ignore="ProtectedPermissions" />
 
     <application
         android:allowBackup="true"

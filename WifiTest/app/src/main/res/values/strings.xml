@@ -13,4 +13,7 @@
     <string name="test_reset">重置</string>
     <string name="guide_wifi_iperf">Iperf 吞吐率测试</string>
     <string name="guide_wifi_aging_test">WiFi 开关测试</string>
+
+    <string name="dialog_countdown_time">( %d ) 取消</string>
+
 </resources>

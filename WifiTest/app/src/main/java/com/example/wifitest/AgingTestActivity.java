@@ -23,6 +23,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -34,8 +35,10 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.Message;
+import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
@@ -45,6 +48,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.yanzhenjie.permission.Action;
 import com.yanzhenjie.permission.AndPermission;
@@ -54,6 +58,7 @@ import com.yanzhenjie.permission.RequestExecutor;
 
 import org.w3c.dom.Text;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -88,6 +93,8 @@ public class AgingTestActivity extends AppCompatActivity {
     ConnectivityManager connManager;
     NetworkInfo networkInfo;
     NetworkCallbackImpl callback;
+    AlertDialog.Builder mBuilder;
+    AlertDialog mDialog;
 
     private DividerItemDecoration mDivider;
     private int mTestCount=0;
@@ -157,6 +164,7 @@ public class AgingTestActivity extends AppCompatActivity {
 
         isBootReceiveStart = getIntent().getBooleanExtra("boot", false);
         Log.i(TAG, " isBootreceiveStart = "+isBootReceiveStart);
+
 
         mWifiManager =(WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         initView();
@@ -292,8 +300,6 @@ public class AgingTestActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         sharedPreferences = getSharedPreferences("data", Context.MODE_PRIVATE);
-
-
         connManager = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
         networkInfo = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
 
@@ -305,6 +311,75 @@ public class AgingTestActivity extends AppCompatActivity {
         getSSIDInfo();
         updateResult();
 
+        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            Log.i(TAG, "location = "+locationManager.isLocationEnabled() +" , providers ="+ locationManager.getAllProviders().toString());
+            if (!locationManager.isLocationEnabled())
+                Toast.makeText(getApplicationContext(), "请在设置里打开位置信息", Toast.LENGTH_SHORT).show();
+        }
+
+
+        countDownTimerDialog();
+
+
+    }
+
+    //重启计时dialog
+    private void countDownTimerDialog(){
+        if(mBuilder == null && mDialog == null) {
+            mBuilder = new AlertDialog.Builder(this);
+            mBuilder.setTitle("重启测试")
+                    .setMessage("设备将重启！")
+                    .setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            //reboot
+                            Log.i(TAG, " dialog positive");
+                            timer.cancel();
+                            rebootFunc();
+                        }
+                    })
+                    .setNegativeButton(R.string.dialog_countdown_time, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            Log.i(TAG, " dialog negative");
+                            dialog.dismiss();
+                            timer.cancel();
+                        }
+                    });
+            mDialog = mBuilder.create();
+        }
+        if(isBootReceiveStart && networkInfo.isConnected() && !mDialog.isShowing()){
+            mDialog.show();
+            timer.start();
+        }
+    }
+
+    CountDownTimer timer = new CountDownTimer(10000,1000) {
+        @Override
+        public void onTick(long millisUntilFinished) {
+            int timer = (int)millisUntilFinished/1000;
+            if (mDialog !=null)
+                mDialog.getButton(DialogInterface.BUTTON_NEGATIVE).setText(getString(R.string.dialog_countdown_time,timer));
+        }
+
+        @Override
+        public void onFinish() {
+            if (mDialog != null) {
+                mDialog.dismiss();
+                rebootFunc();
+                Log.i(TAG, " timer finish");
+            }
+        }
+    };
+
+    //重启设备
+    private void rebootFunc(){
+        try {
+            Runtime.getRuntime().exec("su -c reboot");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 
@@ -419,19 +494,23 @@ public class AgingTestActivity extends AppCompatActivity {
                             Log.i(TAG,"-------------------------------------------------wifi state send message ------");
                             break;
                         case WifiManager.WIFI_STATE_ENABLED:
-                            Log.i(TAG, " enable ");
-                            mWifiManager.startScan();
+                            Log.i(TAG,"-------------------------------------------------wifi state enable ------");
+                            //mWifiManager.startScan();
+
+                            ((WifiManager)getApplicationContext().getSystemService(WIFI_SERVICE)).startScan();
                             break;
                     }
 
 
                     break;
                 case WifiManager.SCAN_RESULTS_AVAILABLE_ACTION: //扫描结果通知
-                    Log.i(TAG, " scan action ");
+                    Log.i(TAG, " -------------scan action ");
                     List<ScanResult> Results = mWifiManager.getScanResults();
                     mData.clear();
                     mRecycler.removeItemDecoration(mDivider);
 
+                    countDownTimerDialog();
+                    
                     //数据排序，去重
                     Collections.sort(Results, new Comparator<ScanResult>() {
                         @Override
