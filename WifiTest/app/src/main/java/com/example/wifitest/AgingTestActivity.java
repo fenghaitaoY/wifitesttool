@@ -319,7 +319,7 @@ public class AgingTestActivity extends AppCompatActivity {
         }
 
 
-        countDownTimerDialog();
+        //countDownTimerDialog();
 
 
     }
@@ -349,7 +349,7 @@ public class AgingTestActivity extends AppCompatActivity {
                     });
             mDialog = mBuilder.create();
         }
-        if(isBootReceiveStart && networkInfo.isConnected() && !mDialog.isShowing()){
+        if(isBootReceiveStart && !mDialog.isShowing() && mWifiManager.isWifiEnabled()){
             mDialog.show();
             timer.start();
         }
@@ -444,7 +444,7 @@ public class AgingTestActivity extends AppCompatActivity {
                     int networkId = wifiInfo.getNetworkId();
                     List<WifiConfiguration> configuredNetworks = my_wifiManager.getConfiguredNetworks();
                     for (WifiConfiguration wifiConfiguration:configuredNetworks){
-                        Log.i(TAG, "ssid = "+wifiConfiguration.SSID);
+                        Log.i(TAG, "ssid = "+wifiConfiguration.toString());
                         if (wifiConfiguration.networkId==networkId){
                             ssid=wifiConfiguration.SSID.replace("\"","");
                             break;
@@ -509,7 +509,7 @@ public class AgingTestActivity extends AppCompatActivity {
                     mData.clear();
                     mRecycler.removeItemDecoration(mDivider);
 
-                    countDownTimerDialog();
+                    //countDownTimerDialog();
                     
                     //数据排序，去重
                     Collections.sort(Results, new Comparator<ScanResult>() {

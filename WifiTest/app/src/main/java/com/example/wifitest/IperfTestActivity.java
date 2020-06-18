@@ -639,7 +639,7 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
      * 获取当前已经连接wifi的ip地址
      * @return
      */
-    private String getCurrentIp(){
+    public String getCurrentIp(){
         int paramInt=0;
         WifiInfo info = mWifiManager.getConnectionInfo();
         ConnectivityManager connectivityManager = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
