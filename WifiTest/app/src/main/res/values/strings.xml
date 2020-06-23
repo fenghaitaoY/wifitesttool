@@ -7,12 +7,13 @@
     <string name="scan">搜索wifi数量共 : %1$d</string>
     <string name="fail">失败: %1$d</string>
     <string name="success">成功: %1$d</string>
-    <string name="test_count">输入测试次数</string>
+    <string name="test_count">输入开关测试次数</string>
     <string name="test_start">开始</string>
     <string name="test_stop">结束</string>
     <string name="test_reset">重置</string>
     <string name="guide_wifi_iperf">Iperf 吞吐率测试</string>
     <string name="guide_wifi_aging_test">WiFi 开关测试</string>
+    <string name="switch_reboot">重启</string>
 
     <string name="dialog_countdown_time">( %d ) 取消</string>
 

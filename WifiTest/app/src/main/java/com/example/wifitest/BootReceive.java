@@ -3,6 +3,7 @@ package com.example.wifitest;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.util.Log;
 
 public class BootReceive extends BroadcastReceiver {
@@ -14,7 +15,10 @@ public class BootReceive extends BroadcastReceiver {
             Intent mainIntent = new Intent(context, AgingTestActivity.class);
             mainIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             mainIntent.putExtra("boot", true);
-            context.startActivity(mainIntent);
+            SharedPreferences sharedPreferences= context.getSharedPreferences("data", Context.MODE_PRIVATE);
+            boolean isOpenReboot = sharedPreferences.getBoolean("reboot", false);
+            if (isOpenReboot)
+                context.startActivity(mainIntent);
         }
     }
 }

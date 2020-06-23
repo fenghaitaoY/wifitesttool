@@ -17,7 +17,7 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:textSize="15sp"
+            android:textSize="12sp"
             android:inputType="number"
             android:hint="@string/test_count"/>
 
@@ -60,6 +60,27 @@
             />
         <Switch
             android:id="@+id/switch_wifi"
+            android:layout_weight="3"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="15dp"
+        android:orientation="horizontal"
+        >
+        <TextView
+            android:id="@+id/switch_reboot_tv"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/switch_reboot"
+            />
+        <Switch
+            android:id="@+id/switch_reboot"
             android:layout_weight="3"
             android:layout_width="0dp"
             android:layout_height="wrap_content" />

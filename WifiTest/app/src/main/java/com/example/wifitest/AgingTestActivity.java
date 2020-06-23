@@ -72,6 +72,7 @@ public class AgingTestActivity extends AppCompatActivity {
     private static final int PERMISSIONS_REQUEST_ACCESS_COARSE_LOCATION=1;
     private TextView mSwitchTextview;
     private Switch mWifiSwitch;
+    private Switch mRebootSwitch;
     private TextView mSSIDTextView;
     private TextView mPasswordTextView;
     private TextView mSuccessTextview;
@@ -102,7 +103,7 @@ public class AgingTestActivity extends AppCompatActivity {
     private boolean isScanResult=false;
     private boolean isConnected = false;
     private boolean isBootReceiveStart = false;
-
+    private boolean isOpenReboot = false;
 
     @SuppressLint("HandlerLeak")
     private Handler mHandler = new Handler(){
@@ -197,6 +198,7 @@ public class AgingTestActivity extends AppCompatActivity {
         mTestButton = findViewById(R.id.test_bt);
         mResetButton = findViewById(R.id.test_reset);
         mScanWifiCount = findViewById(R.id.tv_scan_wifi_count);
+        mRebootSwitch = findViewById(R.id.switch_reboot);
 
         //添加分隔线
         mDivider = new DividerItemDecoration(this, DividerItemDecoration.VERTICAL);
@@ -234,6 +236,24 @@ public class AgingTestActivity extends AppCompatActivity {
                 }.start();
 
 
+            }
+        });
+
+        mRebootSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if(sharedPreferences == null) {
+                    sharedPreferences = getSharedPreferences("data", Context.MODE_PRIVATE);
+                }
+                SharedPreferences.Editor editor = sharedPreferences.edit();
+                if (isChecked){
+                    editor.putBoolean("reboot", true);
+                    Log.i(TAG, " reboot func");
+                    countDownTimerDialog();
+                }else{
+                    editor.putBoolean("reboot", false);
+                }
+                editor.commit();
             }
         });
 
@@ -303,6 +323,9 @@ public class AgingTestActivity extends AppCompatActivity {
         connManager = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
         networkInfo = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
 
+        isOpenReboot = sharedPreferences.getBoolean("reboot", false);
+        mRebootSwitch.setChecked(isOpenReboot);
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N){
             NetworkRequest REQUEST = new NetworkRequest.Builder()
                     .build();
@@ -318,8 +341,8 @@ public class AgingTestActivity extends AppCompatActivity {
                 Toast.makeText(getApplicationContext(), "请在设置里打开位置信息", Toast.LENGTH_SHORT).show();
         }
 
-
-        //countDownTimerDialog();
+        if (isOpenReboot)
+            countDownTimerDialog();
 
 
     }
@@ -509,7 +532,8 @@ public class AgingTestActivity extends AppCompatActivity {
                     mData.clear();
                     mRecycler.removeItemDecoration(mDivider);
 
-                    //countDownTimerDialog();
+                    if (isOpenReboot)
+                        countDownTimerDialog();
                     
                     //数据排序，去重
                     Collections.sort(Results, new Comparator<ScanResult>() {
