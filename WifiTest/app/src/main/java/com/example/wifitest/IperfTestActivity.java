@@ -1,14 +1,11 @@
 package com.example.wifitest;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.RequiresPermission;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
-import android.net.ConnectivityManager;
-import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -17,11 +14,9 @@ import android.os.Handler;
 import android.os.Message;
 import android.text.TextUtils;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ListPopupWindow;
@@ -30,14 +25,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
@@ -51,7 +42,6 @@ import java.util.Timer;
 import lecho.lib.hellocharts.gesture.ContainerScrollType;
 import lecho.lib.hellocharts.gesture.ZoomType;
 import lecho.lib.hellocharts.model.Axis;
-import lecho.lib.hellocharts.model.AxisValue;
 import lecho.lib.hellocharts.model.Line;
 import lecho.lib.hellocharts.model.LineChartData;
 import lecho.lib.hellocharts.model.PointValue;
@@ -114,7 +104,7 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
         mWifiManager =(WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         mInterface.setText("interface: " +getProperty("wifi.interface", "wlan0"));
         mDeviceName.setText("device: "+ Build.BOARD);
-        mIpAddr.setText("ipaddr: "+getCurrentIp());
+        mIpAddr.setText("ipaddr: "+WifiUtilTools.getCurrentIp(getApplicationContext()));
 
         mHandler = new MyHandelr();
 
@@ -476,7 +466,7 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
                 helper.startServer();
 
                 //启动iperf
-                commandList.add(0, PACKAGE_PATH + "/bin/iperf");
+                commandList.add(0, PACKAGE_PATH + "/bin/iperf3");
                 process = new ProcessBuilder().command(commandList).redirectErrorStream(true).start();
                 Log.i(TAG, "do in background end ...");
                 process.waitFor();
@@ -634,30 +624,6 @@ public class IperfTestActivity extends AppCompatActivity implements CompoundButt
             return value;
         }
     }
-
-    /**
-     * 获取当前已经连接wifi的ip地址
-     * @return
-     */
-    public String getCurrentIp(){
-        int paramInt=0;
-        WifiInfo info = mWifiManager.getConnectionInfo();
-        ConnectivityManager connectivityManager = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
-        if (connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI).isConnected()){
-            paramInt = info.getIpAddress();
-
-            Log.i(TAG, "paramInt:"+ paramInt+" 0xFF&paramInt"+(0xFF & paramInt));
-            return new StringBuffer().append(0xFF & paramInt).append(".")
-                                        .append(0xFF & paramInt >> 8).append(".")
-                                        .append(0xFF & paramInt >> 16).append(".")
-                                        .append(0xFF & paramInt >> 24).toString();
-        }else{
-            return "请连接wifi";
-        }
-
-
-    }
-
 
 
 }

@@ -3,7 +3,6 @@ package com.example.wifitest;
 import android.content.Context;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -17,10 +16,10 @@ import java.util.List;
 public class WifiListRecyclerViewAdapter  extends RecyclerView.Adapter<WifiListRecyclerViewAdapter.WifiViewHolder>{
 
     Context mContext;
-    List<ScanResult> mData;
+    List<MyWifiInfo> mData;
     private static final int SIGNAL_LEVELS = 4;
 
-    public WifiListRecyclerViewAdapter(Context context, List<ScanResult> data){
+    public WifiListRecyclerViewAdapter(Context context, List<MyWifiInfo> data){
         mContext = context;
         mData = data;
     }
@@ -34,10 +33,10 @@ public class WifiListRecyclerViewAdapter  extends RecyclerView.Adapter<WifiListR
     @Override
     public void onBindViewHolder(WifiViewHolder holder, int position) {
 
-        holder.ssid.setText(mData.get(position).SSID);
-        holder.rssi.setText(String.valueOf(mData.get(position).level)+" dBm");
+        holder.ssid.setText(mData.get(position).result.SSID);
+        holder.rssi.setText(String.valueOf(mData.get(position).result.level)+" dBm");
 
-        switch (getLevel(mData.get(position).level)){
+        switch (getLevel(mData.get(position).result.level)){
             case 0:
                 holder.wifipic.setImageResource(R.drawable.ic_wifi_lock_signal_1_dark);
                 break;
@@ -49,6 +48,18 @@ public class WifiListRecyclerViewAdapter  extends RecyclerView.Adapter<WifiListR
                 break;
             case 3:
                 holder.wifipic.setImageResource(R.drawable.ic_wifi_lock_signal_4_dark);
+                break;
+        }
+
+        switch (mData.get(position).supportFreq){
+            case 1:
+                holder.freq.setText(R.string.wifi_item_freq_2_4G);
+                break;
+            case 2:
+                holder.freq.setText(R.string.wifi_item_freq_5G);
+                break;
+            case 3:
+                holder.freq.setText(R.string.wifi_item_freq_5G_and_24);
                 break;
         }
 
@@ -73,12 +84,14 @@ public class WifiListRecyclerViewAdapter  extends RecyclerView.Adapter<WifiListR
         ImageView wifipic;
         TextView ssid;
         TextView rssi;
+        TextView freq;
 
         public WifiViewHolder(View view){
             super(view);
             wifipic = view.findViewById(R.id.wifi_item_picture);
             ssid = view.findViewById(R.id.wifi_item_ssid);
             rssi = view.findViewById(R.id.wifi_item_rssi);
+            freq = view.findViewById(R.id.wifi_item_freq);
         }
     }
 

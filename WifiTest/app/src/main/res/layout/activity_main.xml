@@ -64,6 +64,45 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content" />
     </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="15dp"
+        android:orientation="horizontal"
+        >
+        <EditText
+            android:id="@+id/editText_ssid"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/connect_ssid"
+            />
+        <EditText
+            android:id="@+id/editText_password"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/connect_password"
+            />
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="horizontal">
+        <Button
+            android:id="@+id/wifi_connected"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="连接"/>
+        <Button
+            android:id="@+id/wifi_forget"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="10dp"
+            android:layout_marginRight="20dp"
+            android:text="忘记"/>
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -121,7 +160,7 @@
             android:text="@string/psw"
             />
         <TextView
-            android:id="@+id/tv_psw"
+            android:id="@+id/tv_idaddr"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="4"

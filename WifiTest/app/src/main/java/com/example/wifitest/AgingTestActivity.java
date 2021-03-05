@@ -1,7 +1,6 @@
 package com.example.wifitest;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -15,7 +14,6 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 
-import android.app.TabActivity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -38,27 +36,23 @@ import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.Message;
-import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.yanzhenjie.permission.Action;
 import com.yanzhenjie.permission.AndPermission;
 import com.yanzhenjie.permission.Permission;
 import com.yanzhenjie.permission.Rationale;
 import com.yanzhenjie.permission.RequestExecutor;
 
-import org.w3c.dom.Text;
-
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -74,7 +68,7 @@ public class AgingTestActivity extends AppCompatActivity {
     private Switch mWifiSwitch;
     private Switch mRebootSwitch;
     private TextView mSSIDTextView;
-    private TextView mPasswordTextView;
+    private TextView mIpAddrTextView;
     private TextView mSuccessTextview;
     private TextView mFailTextview;
     private TextView mScanWifiCount;
@@ -82,13 +76,17 @@ public class AgingTestActivity extends AppCompatActivity {
     private EditText mCountEdit;
     private Button mTestButton;
     private Button mResetButton;
+    private EditText mSSIDEdit;
+    private EditText mPasswordEdit;
+    private Button mConnectButton;
+    private Button mForgetButton;
 
     public static final int WIFI_SWITCH =1000;
     public static final int WIFI_TEST_STOP=1001;
 
     private WifiManager  mWifiManager;
     private WifiListRecyclerViewAdapter mAdapter;
-    private List<ScanResult> mData;
+    private List<MyWifiInfo> mData;
     WifiBroadCastReceiver broadCastReceiver;
     private SharedPreferences sharedPreferences;
     ConnectivityManager connManager;
@@ -134,7 +132,7 @@ public class AgingTestActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-       /* if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        /*if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Log.i(TAG, " request permissions");
             if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
                             checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -161,11 +159,8 @@ public class AgingTestActivity extends AppCompatActivity {
             }
         }
 
-
-
         isBootReceiveStart = getIntent().getBooleanExtra("boot", false);
         Log.i(TAG, " isBootreceiveStart = "+isBootReceiveStart);
-
 
         mWifiManager =(WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         initView();
@@ -190,7 +185,7 @@ public class AgingTestActivity extends AppCompatActivity {
         mSwitchTextview = findViewById(R.id.switch_tv);
         mWifiSwitch = findViewById(R.id.switch_wifi);
         mSSIDTextView = findViewById(R.id.tv_ssid);
-        mPasswordTextView = findViewById(R.id.tv_psw);
+        mIpAddrTextView = findViewById(R.id.tv_idaddr);
         mSuccessTextview = findViewById(R.id.tv_success);
         mFailTextview = findViewById(R.id.tv_fail);
         mRecycler = findViewById(R.id.recycler);
@@ -199,6 +194,10 @@ public class AgingTestActivity extends AppCompatActivity {
         mResetButton = findViewById(R.id.test_reset);
         mScanWifiCount = findViewById(R.id.tv_scan_wifi_count);
         mRebootSwitch = findViewById(R.id.switch_reboot);
+        mSSIDEdit = findViewById(R.id.editText_ssid);
+        mPasswordEdit = findViewById(R.id.editText_password);
+        mConnectButton = findViewById(R.id.wifi_connected);
+        mForgetButton = findViewById(R.id.wifi_forget);
 
         //添加分隔线
         mDivider = new DividerItemDecoration(this, DividerItemDecoration.VERTICAL);
@@ -294,6 +293,20 @@ public class AgingTestActivity extends AppCompatActivity {
             }
         });
 
+        mConnectButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                //连接路由
+            }
+        });
+
+        mForgetButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                //忘记路由
+            }
+        });
+
     }
 
     public void requestPermission(Activity activity, String... permissions) {
@@ -340,9 +353,14 @@ public class AgingTestActivity extends AppCompatActivity {
             if (!locationManager.isLocationEnabled())
                 Toast.makeText(getApplicationContext(), "请在设置里打开位置信息", Toast.LENGTH_SHORT).show();
         }
+        mIpAddrTextView.setText(WifiUtilTools.getCurrentIp(getApplicationContext()));
+
 
         if (isOpenReboot)
             countDownTimerDialog();
+
+        getPrivilegedConfiguredNetworks();
+
 
 
     }
@@ -498,6 +516,15 @@ public class AgingTestActivity extends AppCompatActivity {
         list.addAll(set);
     }
 
+    private int frequencySupport(int frequency, int tmpfreq){
+        if (frequency/2000==1) tmpfreq = tmpfreq << 1;
+        if (frequency/5000==1) tmpfreq = tmpfreq<< 2;
+        if ((tmpfreq & 0x0010) != 0) return 1;
+        if ((tmpfreq & 0x0100) != 0) return 2;
+        if ((tmpfreq & 0x1000) != 0) return 3;
+        return 0;
+    }
+
     class WifiBroadCastReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -518,7 +545,7 @@ public class AgingTestActivity extends AppCompatActivity {
                             break;
                         case WifiManager.WIFI_STATE_ENABLED:
                             Log.i(TAG,"-------------------------------------------------wifi state enable ------");
-                            //mWifiManager.startScan();
+                            mWifiManager.startScan();
 
                             ((WifiManager)getApplicationContext().getSystemService(WIFI_SERVICE)).startScan();
                             break;
@@ -543,16 +570,64 @@ public class AgingTestActivity extends AppCompatActivity {
                         }
                     });
 
-                    List<ScanResult> temps = new ArrayList<>();
+                    List<MyWifiInfo> temps = new ArrayList<>();
+                    //合并相同ssid
+                    int freq=0x0001;
+                    boolean hasdup=false;
+
                     for (ScanResult result : Results){
-                        if (!result.SSID.isEmpty() && !temps.contains(result)){
-                            temps.add(result);
+                        Log.i(TAG, " wifi 结果 : ssid =" + result.SSID + ", RSSI=" + result.level+", frequency:"
+                                +result.frequency+" , capabilities: "+result.capabilities);
+                        freq=0x0001;
+                        hasdup = false;
+                        if (!result.SSID.isEmpty()) {
+                            if (!temps.isEmpty()) {
+                                //Ap是否已经存在，result 遍历List
+                                for (MyWifiInfo info : temps) {
+                                    if (info.result.SSID.equals(result.SSID)) {
+                                        hasdup = true;
+                                        if (info.getSupportFreq() == 3) continue;
+                                        Log.i(TAG, " getSupportFreq :"+info.getSupportFreq());
+                                        if (info.getSupportFreq() != 1) { //0 2 3
+                                            Log.i(TAG, " ! =1 frequency = "+result.frequency);
+                                            if ((result.frequency / 2000 == 1)) {
+                                                if (info.isSupport5G()) {
+                                                    info.setSupportFreq(3);
+                                                } else {
+                                                    info.setSupportFreq(1);
+                                                }
+                                            }
+                                        }
+
+                                        if (info.getSupportFreq() != 2) {
+                                            Log.i(TAG, " ! =2 frequency = "+result.frequency);
+                                            if ((result.frequency / 5000 == 1)){
+                                                if (info.isSupport24G()) {
+                                                    info.setSupportFreq(3);
+                                                } else {
+                                                    info.setSupportFreq(2);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                if (!hasdup){
+                                    MyWifiInfo info = new MyWifiInfo();
+                                    info.setResult(result);
+                                    info.setSupportFreq(frequencySupport(result.frequency, freq));
+                                    temps.add(info);
+                                }
+                            } else {
+                                MyWifiInfo info = new MyWifiInfo();
+                                info.setResult(result);
+                                info.setSupportFreq(frequencySupport(result.frequency, freq));
+                                temps.add(info);
+                            }
                         }
                     }
-                    Results.clear();
-                    Results.addAll(temps);
 
-                    mData.addAll(Results);
+
+                    mData.addAll(temps);
                     mScanWifiCount.setText(String.format(getResources().getString(R.string.scan), mData.size()));
                     mRecycler.addItemDecoration(mDivider);
                     mAdapter.notifyDataSetChanged();
@@ -560,9 +635,7 @@ public class AgingTestActivity extends AppCompatActivity {
                         isScanResult = true;
                     }
                     Log.i(TAG, " result ="+Results.size());
-                    for (ScanResult result : Results) {
-                        Log.i(TAG, " wifi 结果 : ssid =" + result.SSID + ", RSSI=" + result.level);
-                    }
+
                     Log.i(TAG,"-------------------------------------------------scan send message ------");
 
                     break;
@@ -578,7 +651,7 @@ public class AgingTestActivity extends AppCompatActivity {
                     Log.i(TAG,"supplicant connection change ");
                     break;
                 case ConnectivityManager.CONNECTIVITY_ACTION:
-                    VITY_ACTION: //wifi连接通知
+                    //wifi连接通知
                     Log.i(TAG,"connectivity action ");
                     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N){
                         saveWifiConnectState();
@@ -600,7 +673,7 @@ public class AgingTestActivity extends AppCompatActivity {
             if (networkInfo.isConnected()) {
                 isConnected = true;
                 editor.putInt("success", sharedPreferences.getInt("success", 0) + 1);
-                //mWifiManager.startScan();
+                mWifiManager.startScan();
                 List<ScanResult> scanResults = mWifiManager.getScanResults();
                 Log.i(TAG, "scanResults size =" + scanResults.size());
             } else {
@@ -642,5 +715,10 @@ public class AgingTestActivity extends AppCompatActivity {
         }
     }
 
+
+    private WifiConfiguration getPrivilegedConfiguredNetworks(){
+
+        return null;
+    }
 
 }

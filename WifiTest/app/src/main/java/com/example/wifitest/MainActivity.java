@@ -3,12 +3,12 @@ package com.example.wifitest;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 
-import android.Manifest;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+
+import java.io.File;
+import java.io.IOException;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener{
 
@@ -37,9 +37,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)) {
             requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSIONS_REQUEST_CODE_ACCESS_FINE_LOCATION);
         }*/
-
-
     }
+
+
+
 
     @Override
     public void onClick(View v) {

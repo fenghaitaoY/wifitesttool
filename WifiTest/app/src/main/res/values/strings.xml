@@ -3,7 +3,7 @@
     <string name="open">开启</string>
     <string name="close">关闭</string>
     <string name="ssid">SSID:</string>
-    <string name="psw">Password:</string>
+    <string name="psw">Ip Addr:</string>
     <string name="scan">搜索wifi数量共 : %1$d</string>
     <string name="fail">失败: %1$d</string>
     <string name="success">成功: %1$d</string>
@@ -14,7 +14,11 @@
     <string name="guide_wifi_iperf">Iperf 吞吐率测试</string>
     <string name="guide_wifi_aging_test">WiFi 开关测试</string>
     <string name="switch_reboot">重启</string>
-
+    <string name="connect_ssid">输入连接wifi名称</string>
+    <string name="connect_password">输入wifi密码</string>
     <string name="dialog_countdown_time">( %d ) 取消</string>
+    <string name="wifi_item_freq_2.4G">2.4G</string>
+    <string name="wifi_item_freq_5G">5G</string>
+    <string name="wifi_item_freq_5G_and_24">2.4/5G</string>
 
 </resources>
