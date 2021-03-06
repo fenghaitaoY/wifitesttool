@@ -519,9 +519,10 @@ public class AgingTestActivity extends AppCompatActivity {
     private int frequencySupport(int frequency, int tmpfreq){
         if (frequency/2000==1) tmpfreq = tmpfreq << 1;
         if (frequency/5000==1) tmpfreq = tmpfreq<< 2;
-        if ((tmpfreq & 0x0010) != 0) return 1;
-        if ((tmpfreq & 0x0100) != 0) return 2;
-        if ((tmpfreq & 0x1000) != 0) return 3;
+        Log.i(TAG, "tmpfreq ="+tmpfreq);
+        if ((tmpfreq & 0x0002) != 0) return 1;
+        if ((tmpfreq & 0x0004) != 0) return 2;
+        if ((tmpfreq & 0x0008) != 0) return 3;
         return 0;
     }
 
@@ -615,12 +616,14 @@ public class AgingTestActivity extends AppCompatActivity {
                                     MyWifiInfo info = new MyWifiInfo();
                                     info.setResult(result);
                                     info.setSupportFreq(frequencySupport(result.frequency, freq));
+                                    Log.i(TAG, "ssid:"+info.result.SSID+" , freq="+info.getSupportFreq());
                                     temps.add(info);
                                 }
                             } else {
                                 MyWifiInfo info = new MyWifiInfo();
                                 info.setResult(result);
                                 info.setSupportFreq(frequencySupport(result.frequency, freq));
+                                Log.i(TAG, " else ===========ssid:"+info.result.SSID+" , freq="+info.getSupportFreq());
                                 temps.add(info);
                             }
                         }
